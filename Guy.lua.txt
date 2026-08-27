@@ -1,0 +1,96 @@
+-- ServerScriptService/RollCasesHub.server.lua
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Buat RemoteEvent
+local remote = ReplicatedStorage:FindFirstChild("HubRemote")
+
+if not remote then
+	remote = Instance.new("RemoteEvent")
+	remote.Name = "HubRemote"
+	remote.Parent = ReplicatedStorage
+end
+
+local settings = {}
+
+Players.PlayerAdded:Connect(function(player)
+	settings[player] = {
+		AutoEscape = false,
+		AutoKick = false,
+		AutoCollect = false,
+		AutoOpenCase = false,
+		AutoRebirth = false
+	}
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	settings[player] = nil
+end)
+
+local function teleportToPart(player, partName)
+	local character = player.Character
+	local part = workspace:FindFirstChild(partName)
+
+	if not character or not part then
+		return
+	end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	if root then
+		root.CFrame = part.CFrame + Vector3.new(0, 4, 0)
+	end
+end
+
+remote.OnServerEvent:Connect(function(player, action, value)
+
+	if not settings[player] then
+		return
+	end
+
+	if action == "Toggle" then
+		if settings[player][value] ~= nil then
+			settings[player][value] = true
+		end
+
+	elseif action == "Escape" then
+		teleportToPart(player, "SafeZone")
+
+	elseif action == "Base" then
+		teleportToPart(player, "Base")
+
+	elseif action == "Kick" then
+		teleportToPart(player, "KickZone")
+	end
+end)
+
+-- Auto Escape
+task.spawn(function()
+	while true do
+		task.wait(1)
+
+		local tsunami = workspace:FindFirstChild("Tsunami")
+
+		if tsunami and tsunami:GetAttribute("Active") == true then
+			for player, data in pairs(settings) do
+				if data.AutoEscape then
+					teleportToPart(player, "SafeZone")
+				end
+			end
+		end
+	end
+end)
+
+-- Auto Kick
+task.spawn(function()
+	while true do
+		task.wait(2)
+
+		for player, data in pairs(settings) do
+			if data.AutoKick then
+				teleportToPart(player, "KickZone")
+			end
+		end
+	end
+end)
