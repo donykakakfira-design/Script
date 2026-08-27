@@ -1,0 +1,269 @@
+--[[
+    ROLL CASES FOR BRAINROTS
+    Custom Hub UI
+    Original implementation
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+
+local Player = Players.LocalPlayer
+
+--==================================================
+-- CONFIG
+--==================================================
+
+local Config = {
+    AutoJump = false,
+    AutoTrain = false,
+    AutoCollect = false,
+    AutoOpen = false,
+    AutoMoney = false,
+    AutoRebirth = false,
+    AutoUpgrade = false,
+
+    WalkSpeed = 16,
+    JumpPower = 50,
+
+    SelectedRarity = "All",
+    SelectedMutation = "All",
+}
+
+--==================================================
+-- ANTI AFK
+--==================================================
+
+Player.Idled:Connect(function()
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(
+            Vector2.new(0, 0)
+        )
+    end)
+end)
+
+--==================================================
+-- GUI
+--==================================================
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "RollCasesHub"
+Gui.ResetOnSpawn = false
+Gui.Parent = Player:WaitForChild("PlayerGui")
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.fromOffset(330, 420)
+Main.Position = UDim2.fromScale(0.5, 0.5)
+Main.AnchorPoint = Vector2.new(0.5, 0.5)
+Main.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+Main.BorderSizePixel = 0
+Main.Parent = Gui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 12)
+Corner.Parent = Main
+
+--==================================================
+-- TITLE
+--==================================================
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.BackgroundTransparency = 1
+Title.Text = "🌊 ROLL CASES HUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 20
+Title.Font = Enum.Font.GothamBold
+Title.Parent = Main
+
+--==================================================
+-- CONTAINER
+--==================================================
+
+local Container = Instance.new("ScrollingFrame")
+Container.Position = UDim2.fromOffset(10, 55)
+Container.Size = UDim2.new(1, -20, 1, -65)
+Container.BackgroundTransparency = 1
+Container.BorderSizePixel = 0
+Container.ScrollBarThickness = 3
+Container.Parent = Main
+
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0, 7)
+Layout.Parent = Container
+
+--==================================================
+-- TOGGLE
+--==================================================
+
+local function CreateToggle(Name, Callback)
+
+    local Button = Instance.new("TextButton")
+
+    Button.Size = UDim2.new(1, -5, 0, 38)
+    Button.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+    Button.BorderSizePixel = 0
+    Button.Text = Name .. " : OFF"
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Button.TextSize = 14
+    Button.Font = Enum.Font.GothamSemibold
+    Button.Parent = Container
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 7)
+    Corner.Parent = Button
+
+    local Enabled = false
+
+    Button.MouseButton1Click:Connect(function()
+
+        Enabled = not Enabled
+
+        if Enabled then
+
+            Button.Text = Name .. " : ON"
+            Button.BackgroundColor3 =
+                Color3.fromRGB(30, 170, 70)
+
+        else
+
+            Button.Text = Name .. " : OFF"
+            Button.BackgroundColor3 =
+                Color3.fromRGB(35, 35, 42)
+
+        end
+
+        Callback(Enabled)
+
+    end)
+
+    return Button
+end
+
+--==================================================
+-- MAIN FEATURES
+--==================================================
+
+CreateToggle("🦘 Auto Jump", function(Value)
+
+    Config.AutoJump = Value
+
+end)
+
+CreateToggle("📦 Auto Collect Cases", function(Value)
+
+    Config.AutoCollect = Value
+
+end)
+
+CreateToggle("🎁 Auto Open Cases", function(Value)
+
+    Config.AutoOpen = Value
+
+end)
+
+CreateToggle("💪 Auto Train Legs", function(Value)
+
+    Config.AutoTrain = Value
+
+end)
+
+CreateToggle("💰 Auto Collect Money", function(Value)
+
+    Config.AutoMoney = Value
+
+end)
+
+CreateToggle("🚀 Auto Rebirth", function(Value)
+
+    Config.AutoRebirth = Value
+
+end)
+
+CreateToggle("⬆️ Auto Upgrade", function(Value)
+
+    Config.AutoUpgrade = Value
+
+end)
+
+--==================================================
+-- JUMP SYSTEM
+--==================================================
+
+RunService.Heartbeat:Connect(function()
+
+    if not Config.AutoJump then
+        return
+    end
+
+    local Character = Player.Character
+
+    if not Character then
+        return
+    end
+
+    local Humanoid =
+        Character:FindFirstChildOfClass("Humanoid")
+
+    if not Humanoid then
+        return
+    end
+
+    Humanoid.Jump = true
+
+end)
+
+--==================================================
+-- MOVEMENT
+--==================================================
+
+local function UpdateMovement()
+
+    local Character = Player.Character
+
+    if not Character then
+        return
+    end
+
+    local Humanoid =
+        Character:FindFirstChildOfClass("Humanoid")
+
+    if not Humanoid then
+        return
+    end
+
+    Humanoid.WalkSpeed = Config.WalkSpeed
+
+    if Humanoid.UseJumpPower then
+        Humanoid.JumpPower = Config.JumpPower
+    end
+
+end
+
+Player.CharacterAdded:Connect(function()
+
+    task.wait(1)
+    UpdateMovement()
+
+end)
+
+UpdateMovement()
+
+--==================================================
+-- STATUS
+--==================================================
+
+local Status = Instance.new("TextLabel")
+
+Status.Size = UDim2.new(1, -20, 0, 25)
+Status.Position = UDim2.new(0, 10, 1, -30)
+Status.BackgroundTransparency = 1
+Status.Text = "● Ready"
+Status.TextColor3 = Color3.fromRGB(50, 220, 90)
+Status.TextSize = 12
+Status.Font = Enum.Font.Gotham
+Status.Parent = Main
+
+print("Roll Cases Hub loaded.")
