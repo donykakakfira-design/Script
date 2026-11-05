@@ -1,0 +1,297 @@
+
+-- ISLAND & EGG AUTO | CLIENT SCRIPT
+-- Executor: Delta / Hydrogen / lainnya yang kompatibel
+
+if getgenv().IslandEggAuto then
+    getgenv().IslandEggAuto.Running = false
+end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+local CoreGui = game:GetService("CoreGui")
+
+local LP = Players.LocalPlayer
+local State = {
+    Running = true,
+    AutoIsland = false,
+    AutoAttack = false,
+    AutoEgg = false,
+    AntiAFK = true,
+    IslandIndex = 1
+}
+
+getgenv().IslandEggAuto = State
+
+local function Character()
+    return LP.Character
+end
+
+local function Root()
+    local c = Character()
+    return c and c:FindFirstChild("HumanoidRootPart")
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "IslandEggAuto"
+gui.ResetOnSpawn = false
+
+pcall(function()
+    gui.Parent = CoreGui
+end)
+
+if not gui.Parent then
+    gui.Parent = LP:WaitForChild("PlayerGui")
+end
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 330)
+frame.Position = UDim2.new(0.5, -130, 0.5, -165)
+frame.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
+
+local function Label(text, y, height)
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1, -20, 0, height or 30)
+    l.Position = UDim2.new(0, 10, 0, y)
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextColor3 = Color3.new(1, 1, 1)
+    l.TextSize = 15
+    l.Font = Enum.Font.GothamBold
+    l.Parent = frame
+    return l
+end
+
+local function Button(text, y, callback)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -20, 0, 32)
+    b.Position = UDim2.new(0, 10, 0, y)
+    b.BackgroundColor3 = Color3.fromRGB(55, 55, 70)
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.TextSize = 13
+    b.Font = Enum.Font.GothamBold
+    b.Text = text
+    b.Parent = frame
+
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+
+    b.MouseButton1Click:Connect(callback)
+    return b
+end
+
+Label("ISLAND & EGG AUTO", 8, 30)
+
+local function Toggle(name, y, key)
+    local b
+    local function update()
+        b.Text = name .. " : " ..
+            (State[key] and "ON" or "OFF")
+        b.BackgroundColor3 = State[key]
+            and Color3.fromRGB(25, 130, 75)
+            or Color3.fromRGB(65, 65, 80)
+    end
+
+    b = Button("", y, function()
+        State[key] = not State[key]
+        update()
+    end)
+
+    update()
+    return b
+end
+
+-- ISLAND DETECTION
+local Islands = {}
+
+local function ScanIslands()
+    table.clear(Islands)
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") then
+            local name = obj.Name:lower()
+
+            if name:find("island")
+            or name:find("pulau")
+            or name:find("zone")
+            or name:find("world")
+            or name:find("area") then
+
+                if obj:FindFirstChildWhichIsA("BasePart", true) then
+                    table.insert(Islands, obj)
+                end
+            end
+        end
+    end
+
+    table.sort(Islands, function(a, b)
+        return a.Name < b.Name
+    end)
+
+    State.IslandIndex = math.clamp(
+        State.IslandIndex, 1, math.max(1, #Islands)
+    )
+
+    return #Islands
+end
+
+local islandLabel = Label("Island: scanning...", 48, 24)
+
+local function TeleportIsland()
+    if #Islands == 0 then
+        ScanIslands()
+    end
+
+    local island = Islands[State.IslandIndex]
+    local root = Root()
+
+    if not island or not root then return end
+
+    local success, cf = pcall(function()
+        return island:GetPivot()
+    end)
+
+    if success then
+        root.CFrame = cf + Vector3.new(0, 5, 0)
+        islandLabel.Text = "Island: " .. island.Name
+    end
+end
+
+Button("SCAN ISLANDS", 76, function()
+    local count = ScanIslands()
+    islandLabel.Text = "Found Islands: " .. count
+end)
+
+Button("TELEPORT NEXT ISLAND", 112, function()
+    if #Islands == 0 then ScanIslands() end
+
+    if #Islands > 0 then
+        State.IslandIndex = State.IslandIndex % #Islands + 1
+        TeleportIsland()
+    end
+end)
+
+Toggle("AUTO TELEPORT ISLAND", 150, "AutoIsland")
+Toggle("AUTO ATTACK", 187, "AutoAttack")
+Toggle("AUTO PICK EGG", 224, "AutoEgg")
+Toggle("ANTI AFK", 261, "AntiAFK")
+
+Button("CLOSE GUI", 298, function()
+    State.Running = false
+    gui:Destroy()
+end)
+
+-- AUTO TELEPORT
+task.spawn(function()
+    while State.Running do
+        if State.AutoIsland then
+            if #Islands == 0 then
+                ScanIslands()
+            end
+
+            if #Islands > 0 then
+                TeleportIsland()
+                State.IslandIndex =
+                    State.IslandIndex % #Islands + 1
+            end
+        end
+
+        task.wait(8)
+    end
+end)
+
+-- AUTO ATTACK
+task.spawn(function()
+    while State.Running do
+        if State.AutoAttack then
+            local char = Character()
+
+            if char then
+                local tool = char:FindFirstChildOfClass("Tool")
+
+                if tool then
+                    pcall(function()
+                        tool:Activate()
+                    end)
+                end
+            end
+        end
+
+        task.wait(0.25)
+    end
+end)
+
+-- AUTO PICK EGG
+local function IsEgg(obj)
+    local name = obj.Name:lower()
+
+    return name:find("egg") ~= nil
+        or name:find("telur") ~= nil
+end
+
+local function CollectEggs()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if not State.Running or not State.AutoEgg then
+            break
+        end
+
+        if IsEgg(obj) then
+            -- ProximityPrompt
+            if obj:IsA("ProximityPrompt") then
+                pcall(function()
+                    fireproximityprompt(obj)
+                end)
+            end
+
+            -- ClickDetector
+            if obj:IsA("ClickDetector") then
+                pcall(function()
+                    fireclickdetector(obj)
+                end)
+            end
+
+            -- Egg touch collection
+            if obj:IsA("BasePart") then
+                local root = Root()
+
+                if root and (root.Position - obj.Position).Magnitude < 100 then
+                    pcall(function()
+                        firetouchinterest(root, obj, 0)
+                        task.wait(0.1)
+                        firetouchinterest(root, obj, 1)
+                    end)
+                end
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while State.Running do
+        if State.AutoEgg then
+            CollectEggs()
+        end
+
+        task.wait(1)
+    end
+end)
+
+-- ANTI AFK
+LP.Idled:Connect(function()
+    if State.Running and State.AntiAFK then
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new(0, 0))
+        end)
+    end
+end)
+
+print("Island & Egg Auto Loaded!")
